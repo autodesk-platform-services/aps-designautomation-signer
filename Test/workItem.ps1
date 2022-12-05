@@ -3,27 +3,37 @@ Import-Module Newtonsoft.Json
 $client_id = $env:CLIENT_ID
 $client_secret = $env:CLIENT_SECRET
 #Place your activity
-$activity = Read-Host -Prompt "Enter a fully qualified activityId"
-if ([System.String]::IsNullOrEmpty($activity)) {
-    $activity = 'adesk.HelloWorld+prod'
-    
-}
+
+$activity = 'adesk.HelloWorld+prod'
+ 
+
 $headers = @{}
 $headers.Add("Content-Type", "application/x-www-form-urlencoded")
-$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$cookie = New-Object System.Net.Cookie
-$cookie.Name = 'PF'
-$cookie.Value = '3UPz62jMwpz6oZp4APHxp6'
-$cookie.Domain = 'developer.api.autodesk.com'
-$session.Cookies.Add($cookie)
-$response = Invoke-WebRequest -Uri "https://developer.api.autodesk.com/authentication/v1/authenticate" -Method POST -Headers $headers -WebSession $session -ContentType "application/x-www-form-urlencoded" -Body "client_id=${client_id}&scope=data%3Awrite%20data%3Aread%20bucket%3Aread%20bucket%3Aupdate%20bucket%3Acreate%20code%3Aall&grant_type=client_credentials&client_secret=${client_secret}&="
+try {
+    $response = Invoke-WebRequest -Uri "https://developer.api.autodesk.com/authentication/v1/authenticate" -Method POST -Headers $headers -ContentType "application/x-www-form-urlencoded" -Body "client_id=${client_id}&scope=data%3Awrite%20data%3Aread%20bucket%3Aread%20bucket%3Aupdate%20bucket%3Acreate%20code%3Aall&grant_type=client_credentials&client_secret=${client_secret}&="
+}
+catch {
+    if (!$?) {
+        throw $_.ErrorDetails.Message
+    }
+}
+
 $response = ConvertFrom-Json -InputObject $response.Content
 $bearer = "Bearer $($response.access_token)"
 Write-Output "Get Activity Details ${activity}"
 $headers = @{}
 $headers.Add("Content-Type", "application/json")
 $headers.Add("Authorization", $bearer)
-$response = Invoke-WebRequest -Uri "https://developer.api.autodesk.com/da/us-east/v3/activities/${activity}" -Method GET -Headers $headers -WebSession $session
+
+try {
+    $response = Invoke-WebRequest -Uri "https://developer.api.autodesk.com/da/us-east/v3/activities/${activity}" -Method GET -Headers $headers -ContentType 'application/json'
+}
+catch {
+    if (!$?) {
+        throw $_.ErrorDetails.Message
+    }
+}
+
 $response = $response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 100
 Write-Output $response
 $signTxt = Get-Content ".\sign.txt"
